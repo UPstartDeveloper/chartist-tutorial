@@ -10,12 +10,13 @@ from flask import Flask, render_template, request
 app = Flask(__name__)
 
 # Attach our dataframe to our app
-app.loaded_csv = pd.read_csv("multiTimeline.csv", skiprows=1)
-app.loaded_csv.columns = ["month", "diet", "gym", "finance"]
+
+app.carbon_csv = pd.read_csv("Data/carbon-emissions.csv")
+app.carbon_categories = app.carbon_csv['Description'].unique()
 
 # Convert dates to datetimes
-app.loaded_csv["month"] = pd.to_datetime(
-    app.loaded_csv["month"], format="%Y-%d")
+app.carbon_csv["YYYYMM"] = pd.to_datetime(
+    app.carbon_csv["YYYYMM"], format="%Y-%m")
 
 
 @app.route("/", methods=["GET"])
@@ -42,15 +43,22 @@ def get_time_series_data():
 
     # Grab all of the data specified from start to stop range.
     selected_date_range = app.loaded_csv[
-        (app.loaded_csv["month"] >= datetime.datetime(min_year, 1, 1)) &
-        (app.loaded_csv["month"] <= datetime.datetime(max_year, 12, 31))
+        (app.carbon_csv["YYYYMM"] >= datetime.datetime(min_year, 1, 1)) &
+        (app.carbon_csv["YYYYMM"] <= datetime.datetime(max_year, 12, 31))
     ]
 
     # Slice the DF to include only the trends we want and then to sort our
     # dataframe by those trends.
-    requested_trend_data = selected_date_range[["month"] + trends]
-    requested_trend_data = requested_trend_data.sort_values(by=["month"])
-
+    # requested_trend_data = selected_date_range[["month"] + trends]
+    # requested_trend_data = requested_trend_data.sort_values(by=["month"])
+    requested_trend_data = (
+        app.carbon_csv.loc[
+            app.carbon_csv['Description'] == 
+                'Total Energy Electric Power Sector CO2 Emissions', 
+            ['YYYYMM','Value']
+        ]
+    )
+    requested_trend_data = requested_trend_data.sort_values(by=["YYYYMM"])
     # Return the dataframe as json
     return requested_trend_data.to_json(), 200
 
